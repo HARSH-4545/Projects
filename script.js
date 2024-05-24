@@ -1,126 +1,72 @@
-const questions = [
-    {
-        question: "Which is largest animal in the world ?",
-        answers: [
-            { Text: "Shark", correct: false },
-            { Text: "Blue Whale", correct: true },
-            { Text: "Elephant", correct: false },
-            { Text: "Tiger", correct: false },
-
-        ]
-    },
-    {
-        question: "Which is smallest country in the world ?",
-        answers: [
-            { Text: "Vatican City", correct: true },
-            { Text: "Bhutan", correct: false },
-            { Text: "Nepal", correct: false },
-            { Text: "Sri Lanka", correct: false },
-
-        ]
-    },
-    {
-        question: "Which is smallest continent in the world ?",
-        answers: [
-            { Text: "Asia", correct: false },
-            { Text: "Arctic", correct: false },
-            { Text: "Australia", correct: true },
-            { Text: "Africa", correct: false },
-
-        ]
-    },
-    {
-        question: "Which is largest desert in the world ?",
-        answers: [
-            { Text: "Kalahari", correct: false },
-            { Text: "Gobi", correct: false },
-            { Text: "Sahara", correct: false },
-            { Text: "Antarctica", correct: true },
-
-        ]
+const APIURL = "https://api.github.com/users/";
+const main = document.getElementById("main");
+const form = document.getElementById("form");
+const search = document.getElementById("search");
+async function getUser(username) {
+  try {
+    const { data } = await axios(APIURL + username);
+    createUserCard(data);
+    getRepos(username);
+  } catch (err) {
+    if (err.response.status == 404) {
+      createErrorCard("Invalid Username | Please enter the correct username");
     }
-];
-
-const questionElement = document.getElementById("question");
-const answerButtons = document.getElementById("answer-buttons");
-const nextButton = document.getElementById("next-btn");
-
-let currentQuestionIndex = 0;
-let score = 0;
-
-function startQuiz() {
-    currentQuestionIndex = 0;
-    score = 0;
-    nextButton.innerHTML = "Next";
-    showQuestion();
+  }
 }
-
-function showQuestion() {
-    resetState();
-    let currentQuestion = questions[currentQuestionIndex];
-    let questionNo = currentQuestionIndex + 1;
-    questionElement.innerHTML = questionNo + "." + currentQuestion.question;
-
-    currentQuestion.answers.forEach(answer => {
-        const button = document.createElement("button");
-        button.innerHTML = answer.Text; // Corrected from answer.text to answer.Text
-        button.classList.add("btn");
-        answerButtons.appendChild(button);
-        if (answer.correct) {
-            button.dataset.correct = answer.correct;
-        }
-        button.addEventListener("click", selectAnswer);
-    });
+async function getRepos(username) {
+  try {
+    const { data } = await axios(APIURL + username + "/repos?sort=created");
+    addReposToCard(data);
+  } catch (err) {
+    createErrorCard("Problem fetching repos");
+  }
 }
-
-function resetState() {
-    nextButton.style.display = "none";
-    while (answerButtons.firstChild) {
-        answerButtons.removeChild(answerButtons.firstChild);
-    }
+function createUserCard(user) {
+  const userID = user.name || user.login;
+  const userBio = user.bio ? `<p>${user.bio}</p>` : "";
+  const cardHTML = `
+<div class="card">
+<div>
+<img src="${user.avatar_url}" alt="${user.name}" class="avatar">
+</div>
+<div class="user-info">
+<h2>${userID}</h2>
+${userBio}
+<ul>
+<li>${user.followers} <strong>Followers</strong></li>
+<li>${user.following} <strong>Following</strong></li>
+<li>${user.public_repos} <strong>Repo</strong></li>
+</ul>
+<div id="repos"></div>
+</div>
+</div>
+`;
+  main.innerHTML = cardHTML;
 }
-
-function selectAnswer(e) {
-    const selectedBtn = e.target;
-    const isCorrect = selectedBtn.dataset.correct === "true";
-    if (isCorrect) {
-        selectedBtn.classList.add("correct");
-        score++;
-    } else {
-        selectedBtn.classList.add("incorrect");
-    }
-    Array.from(answerButtons.children).forEach(button => {
-        if (button.dataset.correct === "true") {
-            button.classList.add("correct");
-        }
-        button.disabled = true;
-    });
-    nextButton.style.display = "block";
+function createErrorCard(msg) {
+  const cardHTML = `
+<div class="card">
+<h1>${msg}</h1>
+</div>
+`;
+  main.innerHTML = cardHTML;
 }
-
-function showScore(){
-    resetState();
-    questionElement.innerHTML = `You scored ${score} out of ${questions.length}!`; // Changed single quotes to backticks for string interpolation
-    nextButton.innerHTML = "Play Again";
-    nextButton.style.display = "block";
+function addReposToCard(repos) {
+  const reposEl = document.getElementById("repos");
+  repos.slice(0, 5).forEach((repo) => {
+    const repoEl = document.createElement("a");
+    repoEl.classList.add("repo");
+    repoEl.href = repo.html_url;
+    repoEl.target = "_blank";
+    repoEl.innerText = repo.name;
+    reposEl.appendChild(repoEl);
+  });
 }
-
-function handleNextButton(){
-    currentQuestionIndex++;
-    if(currentQuestionIndex < questions.length){
-        showQuestion();
-    }
-    else{
-        showScore();
-    }
-}
-
-nextButton.addEventListener("click", () => {
-    if (currentQuestionIndex < questions.length) { // Changed question.length to questions.length
-        handleNextButton();
-    } else {
-        startQuiz();
-    }
+form.addEventListener("submit", (e) => {
+  e.preventDefault();
+  const user = search.value;
+  if (user) {
+    getUser(user);
+    search.value = "";
+  }
 });
-
-startQuiz();
